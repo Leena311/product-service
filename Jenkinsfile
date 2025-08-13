@@ -16,7 +16,7 @@ pipeline {
                         docker run -d --name mysql-test ^
                         -e MYSQL_ROOT_PASSWORD=root ^
                         -e MYSQL_DATABASE=product_service_db ^
-                        -p 3307:3306 mysql:8
+                        -p 3306:3306 mysql:8
                     '''
 
                     // Wait for MySQL to initialize
