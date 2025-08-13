@@ -5,7 +5,7 @@ WORKDIR /app
 # Copy the compiled Java application JAR file into the container
 COPY ./target/product-service-0.0.1-SNAPSHOT.jar product-service.jar
 # Expose the port the Spring Boot application will run on
-EXPOSE 8080
+EXPOSE 8083
 # Command to run the application
 CMD ["java", "-jar", "product-service.jar"]
 

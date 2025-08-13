@@ -1,63 +1,44 @@
 pipeline {
     agent any
-    tools {
-        maven 'maven_3_9_11'
+
+    environment {
+        IMAGE_NAME = "madhu973/product-service"
     }
+
     stages {
-
-        stage('Start MySQL') {
+        stage('Checkout') {
             steps {
-                script {
-                    // Remove old container if exists
-                    bat 'docker ps -a -q --filter "name=mysql-test" | findstr . && docker rm -f mysql-test || echo "No old container found"'
-
-                    // Start fresh MySQL container
-                    bat '''
-                        docker run -d --name mysql-test ^
-                        -e MYSQL_ROOT_PASSWORD=root ^
-                        -e MYSQL_DATABASE=product_service_db ^
-                        -p 3306:3306 mysql:8
-                    '''
-
-                    // Wait for MySQL to initialize
-                    bat 'powershell -Command "Start-Sleep -Seconds 20"'
-
-                    // Health check: Ensure MySQL is running
-                    def status = bat(returnStatus: true, script: 'docker exec mysql-test mysqladmin -uroot -proot ping')
-                    if (status != 0) {
-                        error "❌ MySQL failed to start or is not reachable"
-                    } else {
-                        echo "✅ MySQL is up and running"
-                    }
-                }
+                git branch: 'master', url: 'https://github.com/Leena311/product-service'
             }
         }
 
         stage('Build Maven') {
             steps {
-                checkout scmGit(branches: [[name: '*/master']], extensions: [], userRemoteConfigs: [[url: 'https://github.com/Leena311/product-service']])
-                bat 'mvn clean install'
+                bat 'mvn clean package -DskipTests'
             }
         }
 
-        stage('Build Docker image') {
+        stage('Build Docker Image') {
             steps {
-                script {
-                    bat 'docker build -t madhu973/product-service .'
+                bat "docker build -t %IMAGE_NAME% ."
+            }
+        }
+
+        stage('Push to Docker Hub') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-cred', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    bat """
+                    echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin
+                    docker push %IMAGE_NAME%
+                    """
                 }
             }
         }
 
-        stage('Push image to Hub') {
+        stage('Deploy with Docker Compose') {
             steps {
-                script {
-                    withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                        bat """
-                            docker login -u %DOCKER_USER% -p %DOCKER_PASS%
-                            docker push %DOCKER_USER%/product-service
-                        """
-                    }
-                }
+                bat 'docker compose down'
+                bat 'docker compose up -d --build'
             }
         }
     }
