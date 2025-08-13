@@ -3,6 +3,26 @@ pipeline {
     tools{
         maven 'maven_3_9_11'
     }
+    stages {
+            stage('Start MySQL') {
+                steps {
+                    script {
+                        // Stop and remove any old container to avoid conflicts
+                        bat 'docker rm -f mysql-test || exit 0'
+
+                        // Start fresh MySQL container
+                        bat '''
+                            docker run -d --name mysql-test ^
+                            -e MYSQL_ROOT_PASSWORD=root ^
+                            -e MYSQL_DATABASE=product_service_db ^
+                            -p 3306:3306 mysql:8
+                        '''
+
+                        // Wait for MySQL to be ready
+                        bat 'timeout /t 30'
+                    }
+                }
+            }
     stages{
         stage('Build Maven'){
             steps{
